@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Màu thương hiệu đồng bộ với AI-Portal và các ứng dụng Tools (#0061bb) */
+@theme {
+  --color-brand: #0061bb;
+}
+
 :root {
   --app-radius: 0.75rem;
   --app-radius-sm: 0.5rem;
@@ -14,7 +21,8 @@ body {
   background-color: #fafaf9;
 }
 
-/* In: ẩn header/footer trình duyệt, chỉ nội dung */
+html, body { height: 100%; }
+
 @media print {
   body { background: #fff; }
 }

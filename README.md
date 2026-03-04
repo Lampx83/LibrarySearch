@@ -123,7 +123,29 @@ docker cp "/path/to/Danh mục ebook ProQuest.xlsx" library-search_backend_1:/da
 # ... copy các file còn lại
 ```
 
-### Truy cập ứng dụng
+### Lỗi 503 Service Unavailable khi tìm kiếm
+
+Nếu **`/api/search`** trả về **503** trong khi `/api/sources` và `/health` vẫn 200 OK thì backend **chưa load được file Excel/CSV nào** (thư mục dữ liệu trống hoặc sai đường dẫn).
+
+**Cách xử lý:**
+
+1. **Kiểm tra volume / bind mount**  
+   Backend cần đọc file từ `LIBRARY_DATA_DIR` (mặc định `/data`). Trong Portainer:
+   - Vào stack **library-search** → service **backend** → **Volumes**.
+   - Đảm bảo có volume map vào `/data` (named volume `library-data` hoặc bind mount thư mục host chứa file).
+
+2. **Copy file vào container (nếu dùng named volume)**  
+   Trên máy có file Excel/CSV, chạy (đổi tên container nếu khác):
+   ```bash
+   docker cp "Danh mục ebook & eTextbook ProQuest.xlsx" library-search-backend-1:/data/
+   docker cp "Ebook Springer.xlsx" library-search-backend-1:/data/
+   # ... copy từng file còn lại
+   ```
+
+3. **Hoặc dùng bind mount**  
+   Sửa stack trong Portainer (hoặc override docker-compose): thay volume của backend bằng bind mount trỏ tới thư mục trên host có sẵn file, ví dụ `/opt/library-data:/data`. Redeploy stack.
+
+Sau khi có file trong `/data`, gọi lại `/api/search` — 503 sẽ hết (có thể cần restart container backend nếu cache).
 
 - **Giao diện (frontend)**: `http://<máy-chủ>:8019` (vd. `http://101.96.66.232:8019`).
 - **API (backend)**: `http://<máy-chủ>:8020` — dùng cho AI Portal (apiProxyTarget). VD: `http://101.96.66.232:8020`.

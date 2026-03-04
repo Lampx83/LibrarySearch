@@ -66,7 +66,7 @@ function highlightText(text: string, query: string): React.ReactNode {
   while ((match = re.exec(text)) !== null) {
     if (match.index > last) parts.push(text.slice(last, match.index))
     parts.push(
-      <mark key={parts.length} className="bg-amber-200/80 rounded px-0.5">
+      <mark key={parts.length} className="rounded px-0.5 bg-brand/20">
         {match[0]}
       </mark>
     )
@@ -248,8 +248,19 @@ export default function App() {
       const params = new URLSearchParams({ q: term, limit: String(limitOverride ?? LIMIT) })
       if (appendSource && sourceFilter) params.set("source", sourceFilter)
       fetch(API + "/search?" + params)
-        .then((r) => {
-          if (!r.ok) throw new Error(r.statusText)
+        .then(async (r) => {
+          if (!r.ok) {
+            if (r.status === 503) {
+              try {
+                const d = await r.json() as { detail?: string }
+                throw new Error(d.detail || "Chưa có dữ liệu. Cần cấu hình thư mục file Excel/CSV trên server (LIBRARY_DATA_DIR).")
+              } catch (e) {
+                if (e instanceof Error && (e.message.includes("LIBRARY_DATA_DIR") || e.message.includes("Chưa có dữ liệu"))) throw e
+                throw new Error("Chưa có dữ liệu. Cần cấu hình thư mục file Excel/CSV trên server (LIBRARY_DATA_DIR).")
+              }
+            }
+            throw new Error(r.statusText)
+          }
           return r.json()
         })
         .then((data) => {
@@ -352,25 +363,20 @@ export default function App() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-stone-100/80 text-stone-800">
-      <header className="bg-gradient-to-br from-emerald-700 to-emerald-800 text-white shadow-sm">
-        <div className="max-w-3xl mx-auto px-4 py-5 sm:py-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/15">
-              <BookOpen className="h-6 w-6" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <h1 className="text-lg font-semibold tracking-tight sm:text-xl">Tra cứu tài liệu thư viện</h1>
-              <p className="mt-0.5 text-sm text-emerald-100/90">Sách, tạp chí, ebook — ProQuest, Springer, Elsevier, Sách in</p>
-              <p className="mt-1.5 text-xs text-emerald-200/70 print:hidden">Phím tắt: / focus · Esc xóa</p>
-            </div>
-          </div>
+    <div className="flex h-screen flex-col overflow-hidden bg-stone-50 dark:bg-stone-900 text-stone-900 dark:text-stone-100">
+      <header className="flex shrink-0 items-center gap-3 border-b border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 px-4 py-3">
+        <BookOpen className="h-8 w-8 shrink-0 text-brand" />
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-stone-800 dark:text-stone-100">Tra cứu tài liệu thư viện</h1>
+          <p className="text-xs text-stone-500 dark:text-stone-400">Sách, tạp chí, ebook — ProQuest, Springer, Elsevier, Sách in</p>
         </div>
+        <p className="ml-auto hidden text-xs text-stone-400 sm:block print:hidden">Phím tắt: / focus · Esc xóa</p>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 pb-10 pt-6 sm:pt-8">
+      <main className="min-h-0 flex-1 overflow-auto px-4 py-4 sm:px-6 sm:py-5">
+        <div className="w-full">
         {/* Ô tìm kiếm — luôn nổi bật */}
-        <div className="relative rounded-2xl bg-white p-4 shadow-[var(--app-shadow)] ring-1 ring-stone-200/80 sm:p-5" ref={suggestBoxRef}>
+        <div className="relative rounded-2xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-4 shadow-sm sm:p-5" ref={suggestBoxRef}>
           <div className="relative">
             <Search className="absolute left-3.5 top-1/2 h-5 w-5 -translate-y-1/2 text-stone-400 pointer-events-none" />
             <input
@@ -386,7 +392,7 @@ export default function App() {
                   doSearch(query.trim(), true)
                 }
               }}
-              className="h-12 w-full rounded-xl border border-stone-200 bg-stone-50/50 pl-10 pr-10 text-base text-stone-800 placeholder:text-stone-400 focus:border-emerald-500 focus:bg-white focus:ring-2 focus:ring-emerald-500/20 outline-none transition-colors"
+              className="h-12 w-full rounded-xl border border-stone-200 dark:border-stone-600 bg-stone-50 dark:bg-stone-800 pl-10 pr-10 text-base text-stone-800 dark:text-stone-200 placeholder:text-stone-400 focus:border-brand focus:bg-white dark:focus:bg-stone-800 focus:ring-2 focus:ring-brand/20 outline-none transition-colors"
               autoFocus
             />
             {loading && (
@@ -396,14 +402,14 @@ export default function App() {
             )}
           </div>
           {showSuggestions && suggestions.length > 0 && (
-            <div className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-56 overflow-auto rounded-xl border border-stone-200 bg-white shadow-lg ring-1 ring-stone-200/80">
+            <div className="absolute left-0 right-0 top-full z-50 mt-1.5 max-h-56 overflow-auto rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 shadow-lg">
               <p className="border-b border-stone-100 px-3 py-2 text-xs font-medium text-stone-500">Gợi ý từ kho — chọn để tìm</p>
               <ul className="py-1">
                 {suggestions.map((s, i) => (
                   <li key={i}>
                     <button
                       type="button"
-                      className="w-full px-3 py-2.5 text-left text-sm text-stone-700 hover:bg-emerald-50/80"
+                      className="w-full px-3 py-2.5 text-left text-sm text-stone-700 hover:bg-brand/10"
                       onClick={() => {
                         if (debounceRef.current) clearTimeout(debounceRef.current)
                         setQuery(s)
@@ -421,7 +427,7 @@ export default function App() {
         </div>
 
         {/* Gợi ý nhanh + Lịch sử */}
-        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl bg-white/80 px-4 py-3 ring-1 ring-stone-200/60">
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 px-4 py-3">
           <span className="flex items-center gap-1.5 text-xs font-medium text-stone-500"><Sparkles className="h-3.5 w-3.5" /> Thử</span>
           {["economics", "kinh tế", "NV02007", "Springer", "marketing"].map((s) => (
             <button
@@ -432,7 +438,7 @@ export default function App() {
                 setQuery(s)
                 doSearch(s, true)
               }}
-              className="rounded-lg bg-stone-100 px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:bg-emerald-100 hover:text-emerald-800"
+              className="rounded-lg bg-stone-100 dark:bg-stone-700 px-2.5 py-1.5 text-xs font-medium text-stone-600 dark:text-stone-300 hover:bg-brand/10 hover:text-brand"
             >
               {s}
             </button>
@@ -445,7 +451,7 @@ export default function App() {
                   key={r}
                   type="button"
                   onClick={() => { if (debounceRef.current) clearTimeout(debounceRef.current); setQuery(r); doSearch(r, true) }}
-                  className="rounded-lg bg-stone-50 px-2.5 py-1.5 text-xs text-stone-500 hover:bg-emerald-50 hover:text-stone-700"
+                  className="rounded-lg bg-stone-50 dark:bg-stone-800 px-2.5 py-1.5 text-xs text-stone-500 dark:text-stone-400 hover:bg-brand/10 hover:text-stone-700 dark:hover:text-stone-300"
                 >
                   {r}
                 </button>
@@ -456,13 +462,13 @@ export default function App() {
 
         {/* Lọc nguồn */}
         {!loadingSources && sources.length > 0 && (
-          <div className="mt-5 rounded-xl bg-white/80 p-3 ring-1 ring-stone-200/60 sm:p-4">
+          <div className="mt-5 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-3 sm:p-4">
             <p className="mb-2.5 text-xs font-medium text-stone-500">Nguồn dữ liệu</p>
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => setSourceFilter("")}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium ${!sourceFilter ? "bg-emerald-600 text-white shadow-sm" : "bg-stone-100 text-stone-600 hover:bg-stone-200"}`}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium ${!sourceFilter ? "bg-brand text-white shadow-sm" : "bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-600"}`}
               >
                 Tất cả ({totalRows.toLocaleString()})
               </button>
@@ -471,7 +477,7 @@ export default function App() {
                   key={s.id}
                   type="button"
                   onClick={() => setSourceFilter(sourceFilter === s.id ? "" : s.id)}
-                  className={`max-w-[11rem] truncate rounded-lg px-3 py-1.5 text-xs font-medium ${sourceFilter === s.id ? "bg-emerald-600 text-white shadow-sm" : "bg-stone-100 text-stone-600 hover:bg-stone-200"}`}
+                  className={`max-w-[11rem] truncate rounded-lg px-3 py-1.5 text-xs font-medium ${sourceFilter === s.id ? "bg-brand text-white shadow-sm" : "bg-stone-100 dark:bg-stone-700 text-stone-600 dark:text-stone-300 hover:bg-stone-200 dark:hover:bg-stone-600"}`}
                   title={s.name}
                 >
                   {s.name.replace(/\(Sheet1\)$/, "")} ({s.rows})
@@ -482,7 +488,7 @@ export default function App() {
         )}
 
         {error && (
-          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">{error}</div>
+          <div className="mt-4 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">{error}</div>
         )}
 
         {/* Số kết quả theo nguồn */}
@@ -502,14 +508,14 @@ export default function App() {
                 Kết quả &quot;{searchQuery}&quot; · {results.length} bản ghi
               </h2>
               <div className="flex flex-wrap items-center gap-1.5 print:hidden">
-                <button type="button" onClick={() => exportResultsToCSV(results, `tra-cuu-${searchQuery.slice(0, 30).replace(/\s+/g, "-")}.csv`)} disabled={results.length === 0} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 disabled:opacity-50" title="Xuất CSV"><Download className="h-4 w-4" /> CSV</button>
-                <button type="button" onClick={() => setSortBy(sortBy === "title" ? "source" : "title")} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50" title="Sắp xếp"><ArrowUpDown className="h-4 w-4" /> {sortBy === "title" ? "A→Z" : "Nguồn"}</button>
-                <button type="button" onClick={() => window.print()} disabled={results.length === 0} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 disabled:opacity-50" title="In"><Printer className="h-4 w-4" /> In</button>
-                <button type="button" onClick={copyShareLink} disabled={!shareUrl} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-600 hover:bg-stone-50 disabled:opacity-50" title="Chia sẻ link"><Share2 className="h-4 w-4" /> Chia sẻ</button>
+                <button type="button" onClick={() => exportResultsToCSV(results, `tra-cuu-${searchQuery.slice(0, 30).replace(/\s+/g, "-")}.csv`)} disabled={results.length === 0} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-800 px-2.5 py-1.5 text-xs font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700 disabled:opacity-50" title="Xuất CSV"><Download className="h-4 w-4" /> CSV</button>
+                <button type="button" onClick={() => setSortBy(sortBy === "title" ? "source" : "title")} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-800 px-2.5 py-1.5 text-xs font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700" title="Sắp xếp"><ArrowUpDown className="h-4 w-4" /> {sortBy === "title" ? "A→Z" : "Nguồn"}</button>
+                <button type="button" onClick={() => window.print()} disabled={results.length === 0} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-800 px-2.5 py-1.5 text-xs font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700 disabled:opacity-50" title="In"><Printer className="h-4 w-4" /> In</button>
+                <button type="button" onClick={copyShareLink} disabled={!shareUrl} className="inline-flex items-center gap-1.5 rounded-lg border border-stone-200 dark:border-stone-600 bg-white dark:bg-stone-800 px-2.5 py-1.5 text-xs font-medium text-stone-600 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-700 disabled:opacity-50" title="Chia sẻ link"><Share2 className="h-4 w-4" /> Chia sẻ</button>
               </div>
             </div>
             {results.length === 0 && !loading && (
-              <div className="rounded-xl border border-stone-200 bg-stone-50/50 py-14 text-center text-sm text-stone-500">
+              <div className="rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800/50 py-14 text-center text-sm text-stone-500 dark:text-stone-400">
                 Không có bản ghi nào chứa từ khóa này. Thử từ khác hoặc bỏ bớt từ.
               </div>
             )}
@@ -519,10 +525,10 @@ export default function App() {
                 return (
                 <article
                   key={originalIdx}
-                  className="rounded-xl border border-stone-200 bg-white p-4 shadow-[var(--app-shadow)] ring-1 ring-stone-200/50 transition-shadow hover:shadow-[var(--app-shadow-md)] hover:ring-stone-200/80 print:break-inside-avoid"
+                  className="rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 p-4 shadow-sm transition-shadow hover:shadow-md print:break-inside-avoid"
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <span className="inline-flex rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200/60">
+                    <span className="inline-flex rounded-md bg-brand/10 px-2 py-0.5 text-xs font-medium text-brand ring-1 ring-brand/20">
                       {row._source_name}
                     </span>
                     <div className="flex items-center gap-0.5">
@@ -560,7 +566,7 @@ export default function App() {
                         <button
                           type="button"
                           onClick={() => fetchRelated(originalIdx, row)}
-                          className="flex items-center gap-1.5 text-sm font-medium text-emerald-600 hover:text-emerald-700"
+                          className="flex items-center gap-1.5 text-sm font-medium text-brand hover:opacity-90"
                         >
                           <BookMarked className="h-4 w-4" />
                           {related === undefined ? "Gợi ý sách liên quan" : `Sách liên quan (${related.length})`}
@@ -568,8 +574,8 @@ export default function App() {
                         {Array.isArray(related) && related.length > 0 && (
                           <ul className="mt-2 space-y-2">
                             {related.slice(0, 6).map((r, i) => (
-                              <li key={i} className="border-l-2 border-emerald-100 pl-3 text-sm">
-                                <span className="font-medium text-emerald-700">{r._source_name}</span>
+                              <li key={i} className="border-l-2 border-brand/20 pl-3 text-sm">
+                                <span className="font-medium text-brand">{r._source_name}</span>
                                 <p className="truncate text-stone-600" title={getRowTitle(r)}>{getRowTitle(r)}</p>
                               </li>
                             ))}
@@ -591,7 +597,7 @@ export default function App() {
                   type="button"
                   onClick={() => doSearch(searchQuery, true, 400)}
                   disabled={loading}
-                  className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-emerald-700 disabled:opacity-50"
+                  className="rounded-xl bg-brand px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:opacity-90 disabled:opacity-50"
                 >
                   {loading ? "Đang tải…" : "Tải thêm kết quả"}
                 </button>
@@ -605,6 +611,7 @@ export default function App() {
             Gõ ít nhất 2 ký tự để tìm trong {totalRows.toLocaleString()} bản ghi
           </p>
         )}
+        </div>
       </main>
     </div>
   )
