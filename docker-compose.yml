@@ -1,5 +1,6 @@
 # LibrarySearch - Deploy standalone (Portainer / docker-compose)
-# Frontend (nginx): cổng 8019. Backend (API): cổng 8020 (AI Portal gọi trực tiếp).
+# Frontend: 8019. Backend: 8020. Dữ liệu Excel/CSV nhúng trong image (backend/data → /data).
+# Muốn dùng dữ liệu khác: bỏ comment volumes và mount thư mục host.
 
 services:
   backend:
@@ -7,9 +8,9 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      - LIBRARY_DATA_DIR=${LIBRARY_DATA_DIR:-/data}
-    volumes:
-      - library-data:/data
+      - LIBRARY_DATA_DIR=/data
+    # volumes:
+    #   - library-data:/data
     ports:
       - "${BACKEND_PORT:-8020}:8001"
     restart: unless-stopped
@@ -24,5 +25,5 @@ services:
       - backend
     restart: unless-stopped
 
-volumes:
-  library-data:
+# volumes:
+#   library-data:

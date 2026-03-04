@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "build:portal": "VITE_PORTAL_EMBED=1 vite build",
+    "pack": "bash scripts/pack.sh",
     "install:all": "npm install && cd backend && pip install -r requirements.txt",
     "start": "concurrently -n fe,be \"npm run dev\" \"cd backend && python -m uvicorn main:app --reload --port 8001\""
   },

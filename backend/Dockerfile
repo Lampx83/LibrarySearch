@@ -10,9 +10,11 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Dữ liệu nhúng (Excel/CSV) — dùng khi không mount volume
+COPY data /data
+
 COPY main.py .
 
-# Thư mục dữ liệu mặc định trong container (có thể mount volume)
 ENV LIBRARY_DATA_DIR=/data
 
 EXPOSE 8001

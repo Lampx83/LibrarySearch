@@ -16,11 +16,9 @@ from pydantic import BaseModel
 
 load_dotenv()
 
-# Thư mục chứa file Excel/CSV (có thể override bằng env)
-DATA_DIR = os.environ.get(
-    "LIBRARY_DATA_DIR",
-    "/Users/mac/Library/CloudStorage/SynologyDrive-education/000_inbox/Library/Tra cứu tài liệu",
-)
+# Thư mục chứa file Excel/CSV: mặc định dùng thư mục data cùng cấp với main.py (dữ liệu nhúng trong repo)
+_DEFAULT_BUNDLED = (Path(__file__).resolve().parent / "data").as_posix()
+DATA_DIR = os.environ.get("LIBRARY_DATA_DIR", _DEFAULT_BUNDLED)
 
 # Danh sách file mặc định (tên file)
 DEFAULT_FILES = [
