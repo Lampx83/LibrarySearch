@@ -173,6 +173,23 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    if (sources.length > 0 && typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search)
+      const q = params.get("q")?.trim()
+      const src = params.get("source")?.trim()
+      if (q && q.length >= 2) {
+        setQuery(q)
+        setSearchQuery(q)
+        if (src) setSourceFilter(src)
+        const sp = new URLSearchParams({ q, limit: String(LIMIT) })
+        if (src) sp.set("source", src)
+        setLoading(true)
+        fetch(API + "/search?" + sp).then((r) => r.json()).then((d) => { setResults(d.results || []); setPerSource(d.per_source || []); setLoading(false) }).catch(() => setLoading(false))
+      }
+    }
+  }, [sources.length])
+
+  useEffect(() => {
     setRecent(getRecentQueries())
   }, [searchQuery])
 
