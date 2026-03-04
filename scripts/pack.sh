@@ -10,7 +10,9 @@ OUT_NAME="LibrarySearch-${VERSION}"
 ZIP_NAME="${OUT_NAME}.zip"
 STAGE=".pack-stage"
 
-echo "Building frontend..."
+echo "Building frontend (clean build)..."
+rm -rf "$ROOT/dist"
+rm -rf "$ROOT/node_modules/.vite"
 npm run build
 
 echo "Preparing package ${OUT_NAME}..."

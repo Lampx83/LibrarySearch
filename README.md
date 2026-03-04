@@ -139,24 +139,27 @@ docker compose up -d --build
 
 ## Đóng gói và đưa lên AI Portal
 
-Ứng dụng có thể được nhúng vào AI Portal dưới dạng **tool (frontend-only)**. Portal hiển thị trong sidebar và mở giao diện trong iframe; API được proxy qua Portal tới backend Python.
+Ứng dụng có thể được nhúng vào AI Portal dưới dạng **tool (frontend-only)**. Cách đóng gói giống các app khác trong Tools: dùng `npm run pack`, zip nằm trong `dist/`.
 
-### Bước 1: Build package
+### Bước 1: Đóng gói (pack)
 
 ```bash
 cd Tools/LibrarySearch
-npm run build:portal
-./scripts/build-portal-package.sh
+npm install   # lần đầu (cần adm-zip)
+npm run pack
 ```
 
-Sẽ tạo file `library-search-portal.zip`.
+Tạo file **`dist/library-search-app-package.zip`** (manifest + public/ trong zip, base path `/embed/library-search/`).
+
+- **pack:basepath**: build với base path tùy chỉnh rồi tạo `dist/library-search-app-package-basepath.zip` (dùng khi nhúng ở đường dẫn khác).
+- **pack:standalone**: tạo zip đầy đủ (frontend + backend + Docker) để chạy độc lập: `LibrarySearch-1.0.0.zip`.
 
 ### Bước 2: Cài vào AI Portal
 
 1. Đăng nhập AI Portal với tài khoản admin.
-2. Vào **Cài đặt** → **Cài đặt ứng dụng từ file** → chọn `library-search-portal.zip` → Cài đặt.
+2. Vào **Cài đặt** → **Cài đặt ứng dụng từ file** → chọn **`library-search-app-package.zip`** (trong thư mục `dist/`) → Cài đặt.
 3. Vào **Cài đặt công cụ** → chọn tool **Tra cứu tài liệu thư viện** (alias: `library-search`) → **Chỉnh sửa**.
-4. Trong **config_json** thêm key: `apiProxyTarget` = URL backend LibrarySearch (vd. `http://localhost:8001` hoặc `https://library-api.example.com`). Lưu.
+4. Trong **config_json** có thể thêm key `apiProxyTarget` = URL backend (vd. `http://101.96.66.232:8020`). Nếu cài từ file zip chuẩn của ứng dụng, **apiProxyTarget** đã được đặt mặc định là `http://101.96.66.232:8020` (backend LibrarySearch trên Portainer). Lưu.
 
 ### Bước 3: Chạy backend LibrarySearch
 
