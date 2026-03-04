@@ -1,5 +1,5 @@
 # LibrarySearch - Deploy standalone (Portainer / docker-compose)
-# Frontend (nginx) proxy /api tới backend. Truy cập qua cổng frontend (3002).
+# Frontend (nginx): cổng 8019. Backend (API): cổng 8020 (AI Portal gọi trực tiếp).
 
 services:
   backend:
@@ -9,24 +9,20 @@ services:
     environment:
       - LIBRARY_DATA_DIR=${LIBRARY_DATA_DIR:-/data}
     volumes:
-      # Mount thư mục chứa file Excel/CSV (đặt đường dẫn trong .env hoặc Portainer env)
       - library-data:/data
+    ports:
+      - "${BACKEND_PORT:-8020}:8001"
     restart: unless-stopped
-    # Không expose ra host, chỉ dùng nội bộ bởi frontend
 
   frontend:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "${HTTP_PORT:-3002}:80"
+      - "${HTTP_PORT:-8019}:80"
     depends_on:
       - backend
     restart: unless-stopped
 
 volumes:
   library-data:
-    # Volume lưu dữ liệu. Để dùng thư mục host thay vì named volume, sửa thành:
-    # volumes:
-    #   - /path/on/host/Tra_cuu_tai_lieu:/data
-    # và set LIBRARY_DATA_DIR=/data
