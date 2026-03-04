@@ -1,0 +1,7 @@
+{
+  "alias": "library-search",
+  "name": "Tra cứu tài liệu thư viện",
+  "icon": "FileText",
+  "hasFrontendOnly": true,
+  "supported_languages": ["vi", "en"]
+}

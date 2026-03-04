@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build
+dist/
+portal-package/
+*.zip
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+
+# Python
+backend/__pycache__/
+backend/**/__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*.log
+*.swp
