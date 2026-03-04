@@ -1,5 +1,5 @@
-import { BookOpen, Search, Loader2, Copy, History, Sparkles, BookMarked } from "lucide-react"
-import { useEffect, useState, useRef, useCallback } from "react"
+import { BookOpen, Search, Loader2, Copy, History, Sparkles, BookMarked, Download, ArrowUpDown, Printer, Share2, FileText } from "lucide-react"
+import { useEffect, useState, useRef, useCallback, useMemo } from "react"
 
 // Khi nhúng trong AI Portal: Portal inject window.__DATA_API_BASE__ = /base-path/api/apps/library-search
 const API =
@@ -105,6 +105,40 @@ function getTitleAuthorSubject(row: SearchResult): { title: string; author: stri
   return { title: get(titleKeys), author: get(authorKeys), subject: get(subjectKeys) }
 }
 
+function getRowTitle(row: SearchResult): string {
+  return getTitleAuthorSubject(row).title || (Object.keys(row).filter((k) => !k.startsWith("_")).map((k) => row[k]).find((v) => typeof v === "string" && v.length > 0 && v.length < 500) as string) || "—"
+}
+
+function formatCitationAPA(row: SearchResult): string {
+  const { title, author } = getTitleAuthorSubject(row)
+  const year = row["Năm XB"] || row["Thông tin xuất bản"] || row["Thông tin xu?t b?n"] || ""
+  const yearMatch = year.match(/\d{4}/)
+  const pub = row["Nhà xuất bản"] || row["Publisher"] || ""
+  const authorPart = author ? author.replace(/\s*\/\s*.*$/, "").trim() + "." : ""
+  const yearPart = yearMatch ? ` (${yearMatch[0]}).` : "."
+  const titlePart = (title || "—") + "."
+  const pubPart = pub ? ` ${pub}.` : ""
+  return authorPart + yearPart + " " + titlePart + pubPart
+}
+
+function exportResultsToCSV(results: SearchResult[], filename: string) {
+  if (results.length === 0) return
+  const allKeys = new Set<string>()
+  results.forEach((r) => Object.keys(r).filter((k) => !k.startsWith("_")).forEach((k) => allKeys.add(k)))
+  const headers = Array.from(allKeys)
+  const BOM = "\uFEFF"
+  const csvRows = [headers.map((h) => `"${String(h).replace(/"/g, '""')}"`).join(",")]
+  results.forEach((r) => {
+    csvRows.push(headers.map((h) => `"${String(r[h] || "").replace(/"/g, '""')}"`).join(","))
+  })
+  const blob = new Blob([BOM + csvRows.join("\n")], { type: "text/csv;charset=utf-8" })
+  const a = document.createElement("a")
+  a.href = URL.createObjectURL(blob)
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
+
 export default function App() {
   const [sources, setSources] = useState<Source[]>([])
   const [loadingSources, setLoadingSources] = useState(true)
@@ -119,6 +153,7 @@ export default function App() {
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [relatedByIndex, setRelatedByIndex] = useState<Record<number, SearchResult[]>>({})
+  const [sortBy, setSortBy] = useState<"source" | "title">("source")
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const suggestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -187,13 +222,13 @@ export default function App() {
   }, [showSuggestions])
 
   const doSearch = useCallback(
-    (q: string, appendSource?: boolean) => {
+    (q: string, appendSource?: boolean, limitOverride?: number) => {
       const term = q.trim()
       if (!term) return
       setSearchQuery(term)
       setLoading(true)
       setError(null)
-      const params = new URLSearchParams({ q: term, limit: String(LIMIT) })
+      const params = new URLSearchParams({ q: term, limit: String(limitOverride ?? LIMIT) })
       if (appendSource && sourceFilter) params.set("source", sourceFilter)
       fetch(API + "/search?" + params)
         .then((r) => {
@@ -263,6 +298,42 @@ export default function App() {
 
   const totalRows = sources.reduce((a, s) => a + s.rows, 0)
 
+  const sortedResults = useMemo(() => {
+    if (sortBy === "title") {
+      return [...results].sort((a, b) => getRowTitle(a).localeCompare(getRowTitle(b), "vi"))
+    }
+    return results
+  }, [results, sortBy])
+
+  const shareUrl =
+    typeof window !== "undefined" && searchQuery
+      ? `${window.location.origin}${window.location.pathname}?q=${encodeURIComponent(searchQuery)}${sourceFilter ? "&source=" + encodeURIComponent(sourceFilter) : ""}`
+      : ""
+
+  const copyShareLink = () => {
+    if (shareUrl) navigator.clipboard.writeText(shareUrl)
+  }
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "/" && !/^(input|textarea)$/i.test((e.target as HTMLElement)?.tagName)) {
+        e.preventDefault()
+        inputRef.current?.focus()
+      }
+      if (e.key === "Escape") {
+        setShowSuggestions(false)
+        if (document.activeElement === inputRef.current) {
+          setQuery("")
+          setSearchQuery("")
+          setResults([])
+          setPerSource([])
+        }
+      }
+    }
+    document.addEventListener("keydown", onKeyDown)
+    return () => document.removeEventListener("keydown", onKeyDown)
+  }, [])
+
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800">
       <header className="bg-emerald-800 text-white shadow">
@@ -273,6 +344,7 @@ export default function App() {
             <p className="text-emerald-100 text-sm truncate">
               Gõ từ khóa — tìm trong sách, tạp chí, ebook (ProQuest, Springer, Elsevier, Sách in...)
             </p>
+            <p className="text-emerald-200/80 text-xs mt-0.5 print:hidden">Phím tắt: / focus tìm kiếm, Esc xóa</p>
           </div>
         </div>
       </header>
@@ -417,32 +489,55 @@ export default function App() {
         {/* Kết quả */}
         {searchQuery && (
           <section>
-            <h2 className="text-lg font-medium text-stone-700 mb-3">
-              Kết quả &quot;{searchQuery}&quot;: {results.length} bản ghi
-            </h2>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+              <h2 className="text-lg font-medium text-stone-700">
+                Kết quả &quot;{searchQuery}&quot;: {results.length} bản ghi
+              </h2>
+              <div className="flex flex-wrap items-center gap-2 print:hidden">
+                <button type="button" onClick={() => exportResultsToCSV(results, `tra-cuu-${searchQuery.slice(0, 30).replace(/\s+/g, "-")}.csv`)} disabled={results.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 text-sm disabled:opacity-50" title="Xuất CSV">
+                  <Download className="w-4 h-4" /> Xuất CSV
+                </button>
+                <button type="button" onClick={() => setSortBy(sortBy === "title" ? "source" : "title")} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 text-sm" title="Sắp xếp">
+                  <ArrowUpDown className="w-4 h-4" /> {sortBy === "title" ? "A→Z" : "Nguồn"}
+                </button>
+                <button type="button" onClick={() => window.print()} disabled={results.length === 0} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 text-sm disabled:opacity-50" title="In">
+                  <Printer className="w-4 h-4" /> In
+                </button>
+                <button type="button" onClick={copyShareLink} disabled={!shareUrl} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-stone-200 bg-white text-stone-600 hover:bg-stone-50 text-sm disabled:opacity-50" title="Chia sẻ link">
+                  <Share2 className="w-4 h-4" /> Chia sẻ
+                </button>
+              </div>
+            </div>
             {results.length === 0 && !loading && (
               <div className="py-12 text-center text-stone-500 rounded-xl bg-stone-100/50">
                 Không có bản ghi nào chứa từ khóa này. Thử từ khác hoặc bỏ bớt từ.
               </div>
             )}
             <div className="space-y-3">
-              {results.map((row, idx) => (
+              {sortedResults.map((row, displayIdx) => {
+                const originalIdx = results.indexOf(row)
+                return (
                 <article
-                  key={idx}
-                  className="bg-white rounded-xl border border-stone-200 p-4 shadow-sm hover:shadow-md transition-shadow"
+                  key={originalIdx}
+                  className="bg-white rounded-xl border border-stone-200 p-4 shadow-sm hover:shadow-md transition-shadow print:break-inside-avoid"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <span className="text-xs font-medium text-emerald-700 shrink-0">
                       {row._source_name}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => copyRow(row)}
-                      className="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-600"
-                      title="Sao chép"
-                    >
-                      <Copy className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center gap-0.5">
+                      <button type="button" onClick={() => navigator.clipboard.writeText(formatCitationAPA(row))} className="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-600 print:hidden" title="Copy trích dẫn APA">
+                        <FileText className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => copyRow(row)}
+                        className="p-1.5 rounded-lg text-stone-400 hover:bg-stone-100 hover:text-stone-600"
+                        title="Sao chép"
+                      >
+                        <Copy className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                   <dl className="grid gap-1.5 text-sm mt-2">
                     {getDisplayKeys(row).map((key) => (
@@ -454,9 +549,56 @@ export default function App() {
                       </div>
                     ))}
                   </dl>
+                  {/* Gợi ý sách liên quan (cùng tác giả / chủ đề) */}
+                  {(() => {
+                    const { author, subject } = getTitleAuthorSubject(row)
+                    const hasAuthorOrSubject = author.length >= 2 || subject.length >= 2
+                    const related = relatedByIndex[originalIdx]
+                    if (!hasAuthorOrSubject) return null
+                    return (
+                      <div className="mt-4 pt-3 border-t border-stone-100">
+                        <button
+                          type="button"
+                          onClick={() => fetchRelated(originalIdx, row)}
+                          className="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-1.5"
+                        >
+                          <BookMarked className="w-4 h-4" />
+                          {related === undefined ? "Gợi ý sách liên quan" : `Sách liên quan (${related.length})`}
+                        </button>
+                        {Array.isArray(related) && related.length > 0 && (
+                          <ul className="mt-2 space-y-2">
+                            {related.slice(0, 6).map((r, i) => (
+                              <li key={i} className="text-sm pl-5 border-l-2 border-emerald-100">
+                                <span className="text-emerald-700 font-medium">{r._source_name}</span>
+                                <p className="text-stone-600 truncate" title={getRowTitle(r)}>
+                                  {getRowTitle(r)}
+                                </p>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                        {Array.isArray(related) && related.length === 0 && (
+                          <p className="text-stone-400 text-xs mt-1 pl-5">Chưa tìm thấy sách liên quan khác.</p>
+                        )}
+                      </div>
+                    )
+                  })()}
                 </article>
-              ))}
+              )
+              })}
             </div>
+            {results.length === LIMIT && searchQuery && (
+              <div className="mt-4 text-center print:hidden">
+                <button
+                  type="button"
+                  onClick={() => doSearch(searchQuery, true, 400)}
+                  disabled={loading}
+                  className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {loading ? "Đang tải…" : "Tải thêm kết quả"}
+                </button>
+              </div>
+            )}
           </section>
         )}
 

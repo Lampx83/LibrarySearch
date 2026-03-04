@@ -66,6 +66,79 @@ npm run dev
 
 Tìm kiếm không phân biệt hoa thường, tìm trong mọi cột (nhan đề, tác giả, chủ đề, barcode, v.v.).
 
+## Deploy lên Portainer (Docker)
+
+Ứng dụng chạy độc lập (frontend + backend trong Docker), có thể deploy qua **Git repository** trong Portainer. Sau khi deploy, dùng URL này làm **API cho AI Portal** (apiProxyTarget).
+
+### Cấu trúc Docker
+
+- **frontend**: Build Vite → nginx serve static, proxy `/api` và `/health` tới backend.
+- **backend**: FastAPI (Python), đọc Excel/CSV từ volume hoặc thư mục mount.
+- Một cổng duy nhất (mặc định **3002**): truy cập giao diện và API qua cùng URL.
+
+### Deploy qua Git repository trong Portainer
+
+1. Vào Portainer → **Stacks** → **Add stack**.
+2. Đặt tên stack (vd. `library-search`).
+3. Chọn **Git repository**:
+   - **Repository URL**: `https://github.com/Lampx83/LibrarySearch.git`
+   - **Compose path**: `docker-compose.yml`
+   - **Branch**: `main`
+4. (Tùy chọn) **Environment variables**:
+   - `HTTP_PORT`: cổng trên host (mặc định `3002`).
+   - `LIBRARY_DATA_DIR`: trong container mặc định `/data` (volume được mount tại đây).
+5. **Deploy the stack**.
+
+### Dữ liệu Excel/CSV
+
+Backend cần thư mục chứa file Excel/CSV. Hai cách:
+
+**Cách 1: Bind mount thư mục host**
+
+Sửa `docker-compose.yml` trong repo (hoặc dùng override): thay volume `library-data` của service `backend` bằng:
+
+```yaml
+volumes:
+  - /đường/dẫn/trên/máy/chứa/file:/data
+```
+
+Đảm bảo `LIBRARY_DATA_DIR=/data` (mặc định).
+
+**Cách 2: Named volume và copy file vào**
+
+Sau khi stack chạy, copy file vào volume:
+
+```bash
+docker cp "/path/to/Danh mục ebook ProQuest.xlsx" library-search_backend_1:/data/
+# ... copy các file còn lại
+```
+
+### Truy cập ứng dụng
+
+- **Giao diện**: `http://<máy-chủ>:3002` (hoặc cổng bạn đặt `HTTP_PORT`).
+- **API** (dùng cho AI Portal): cùng URL gốc, ví dụ `http://<máy-chủ>:3002` (không cần thêm `/api` khi cấu hình Portal).
+
+### Kết nối AI Portal với bản deploy trên Portainer
+
+1. Trong AI Portal: **Cài đặt** → **Cài đặt công cụ** → tool **Tra cứu tài liệu thư viện** (đã cài từ package zip) → **Cấu hình**.
+2. **API Proxy Target (URL)**: nhập **URL gốc** của ứng dụng vừa deploy, ví dụ:
+   - `http://192.168.1.100:3002` (nếu Portal và LibrarySearch cùng mạng),
+   - hoặc `https://library-search.ten-mien-cua-ban.com` (nếu đã reverse proxy + HTTPS).
+3. Lưu. Portal sẽ proxy mọi request từ iframe tới URL này (vd. `/api/sources`, `/api/search`).
+
+**Chạy bằng docker-compose tại máy (không dùng Portainer):**
+
+```bash
+git clone https://github.com/Lampx83/LibrarySearch.git
+cd LibrarySearch
+cp .env.docker.example .env
+# Chỉnh .env: HTTP_PORT, LIBRARY_DATA_DIR (hoặc mount volume trong docker-compose)
+docker compose up -d --build
+# Mở http://localhost:3002
+```
+
+---
+
 ## Đóng gói và đưa lên AI Portal
 
 Ứng dụng có thể được nhúng vào AI Portal dưới dạng **tool (frontend-only)**. Portal hiển thị trong sidebar và mở giao diện trong iframe; API được proxy qua Portal tới backend Python.

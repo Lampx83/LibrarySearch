@@ -1,0 +1,18 @@
+# Dependencies & build artifacts
+node_modules/
+dist/
+.git/
+.gitignore
+*.md
+.env
+.env.*
+*.log
+
+# Backend (build riêng từ backend/)
+backend/
+
+# Portal package (không cần trong image)
+manifest.json
+portal-package/
+*.zip
+scripts/

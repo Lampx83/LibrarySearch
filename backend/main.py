@@ -133,8 +133,11 @@ def _build_suggestion_terms() -> None:
         return
     seen: set[str] = set()
     out: list[str] = []
+    max_rows_per_source = 2500
     for data in _sources.values():
         df = data["df"]
+        if len(df) > max_rows_per_source:
+            df = df.head(max_rows_per_source)
         title_cols = [c for c in df.columns if _col_matches_pattern(str(c), SUGGESTION_COLUMN_PATTERNS["title"])]
         author_cols = [c for c in df.columns if _col_matches_pattern(str(c), SUGGESTION_COLUMN_PATTERNS["author"])]
         subject_cols = [c for c in df.columns if _col_matches_pattern(str(c), SUGGESTION_COLUMN_PATTERNS["subject"])]
