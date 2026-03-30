@@ -12,7 +12,7 @@ services:
     # volumes:
     #   - library-data:/data
     ports:
-      - "${BACKEND_PORT:-8018}:8001"
+      - "${BACKEND_PORT:-8021}:8001"
     restart: unless-stopped
 
   frontend:
